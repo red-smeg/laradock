@@ -7,3 +7,4 @@ if [ ! -f /etc/nginx/ssl/default.crt ]; then
 fi
 
 nginx
+
