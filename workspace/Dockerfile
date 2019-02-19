@@ -41,7 +41,7 @@ RUN apt-get update -yqq && \
     pecl channel-update pecl.php.net && \
     groupadd -g ${PGID} laradock && \
     useradd -u ${PUID} -g laradock -m laradock -G docker_env && \
-    usermod -p "*" laradock
+    usermod -p "*" laradock -s /bin/bash
 
 #
 #--------------------------------------------------------------------------
@@ -53,6 +53,12 @@ RUN apt-get update -yqq && \
 # to add more Software's or remove existing one, you need to edit the
 # base image (https://github.com/Laradock/workspace).
 #
+# next lines are here becase there is no auto build on dockerhub see https://github.com/laradock/laradock/pull/1903#issuecomment-463142846
+USER root
+
+RUN apt-get install -y libzip-dev zip unzip \
+    # Install the zip extension
+    php${LARADOCK_PHP_VERSION}-zip
 
 #
 #--------------------------------------------------------------------------
@@ -175,6 +181,21 @@ RUN if [ ${INSTALL_DRUSH} = true ]; then \
 ;fi
 
 ###########################################################################
+# WP CLI:
+###########################################################################
+
+# The command line interface for WordPress
+
+USER root
+
+ARG INSTALL_WP_CLI=false
+
+RUN if [ ${INSTALL_WP_CLI} = true ]; then \
+    curl -fsSL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar | bash && \
+    chmod +x /usr/local/bin/wp \
+;fi
+
+###########################################################################
 # SSH2:
 ###########################################################################
 
@@ -194,11 +215,11 @@ RUN if [ ${INSTALL_SSH2} = true ]; then \
 USER root
 
 ARG INSTALL_GMP=false
-ARG PHP_VERSION=${PHP_VERSION}
+ARG PHP_VERSION=${LARADOCK_PHP_VERSION}
 
 RUN if [ ${INSTALL_GMP} = true ]; then \
   # Install the PHP GMP extension
-  apt-get -y install php${PHP_VERSION}-gmp \
+  apt-get -y install php${LARADOCK_PHP_VERSION}-gmp \
 ;fi
 
 ###########################################################################
@@ -213,6 +234,20 @@ RUN if [ ${INSTALL_SOAP} = true ]; then \
   # Install the PHP SOAP extension
   apt-get -y install libxml2-dev php${LARADOCK_PHP_VERSION}-soap \
 ;fi
+
+###########################################################################
+# XSL:
+###########################################################################
+
+USER root
+
+ARG INSTALL_XSL=false
+
+RUN if [ ${INSTALL_XSL} = true ]; then \
+  # Install the PHP XSL extension
+  apt-get -y install libxslt-dev php${LARADOCK_PHP_VERSION}-xsl \
+;fi
+
 
 ###########################################################################
 # LDAP:
@@ -359,10 +394,7 @@ RUN if [ ${INSTALL_AMQP} = true ]; then \
 ARG INSTALL_PHPREDIS=false
 
 RUN if [ ${INSTALL_PHPREDIS} = true ]; then \
-    # Install Php Redis extension
-    printf "\n" | pecl -q install -o -f redis && \
-    echo "extension=redis.so" >> /etc/php/${LARADOCK_PHP_VERSION}/mods-available/redis.ini && \
-    phpenmod redis \
+    apt-get install -yqq php-redis \
 ;fi
 
 ###########################################################################
@@ -440,6 +472,7 @@ ARG INSTALL_NODE=false
 ARG INSTALL_NPM_GULP=false
 ARG INSTALL_NPM_BOWER=false
 ARG INSTALL_NPM_VUE_CLI=false
+ARG INSTALL_NPM_ANGULAR_CLI=false
 ARG NPM_REGISTRY
 ENV NPM_REGISTRY ${NPM_REGISTRY}
 ENV NVM_DIR /home/laradock/.nvm
@@ -463,6 +496,9 @@ RUN if [ ${INSTALL_NODE} = true ]; then \
         ;fi \
         && if [ ${INSTALL_NPM_VUE_CLI} = true ]; then \
         npm install -g @vue/cli \
+        ;fi \
+        && if [ ${INSTALL_NPM_ANGULAR_CLI} = true ]; then \
+        npm install -g @angular/cli \
         ;fi \
         && ln -s `npm bin --global` /home/laradock/.node-bin \
 ;fi
